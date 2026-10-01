@@ -40,6 +40,7 @@ html,body,#app{height:100%;margin:0}body{font-family:Inter,sans-serif;background
       <button :disabled="busy" class="w-full py-2.5 rounded-xl text-white text-sm font-medium bg-gradient-to-r from-indigo-600 to-violet-600 shadow-md shadow-indigo-500/25 disabled:opacity-60">{{busy?'Memeriksa...':'Masuk'}}</button>
       <p class="text-xs text-slate-400 text-center">{{lg.role==='siswa'?'Password awal siswa adalah NIS.':'Akun awal: admin / admin123. Segera ganti di Profil Saya.'}}</p>
       <p v-if="demo" class="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">Mode demo: data hanya tersimpan di browser ini. Isi API_URL agar siswa di perangkat lain bisa masuk.</p>
+      <p class="text-[11px] text-slate-300 text-center">SIMAS CALM versi 2.1</p>
     </form>
   </div>
 </div>
@@ -57,6 +58,7 @@ html,body,#app{height:100%;margin:0}body{font-family:Inter,sans-serif;background
         <span v-if="!col&&n.b" :class="['text-[10px] px-1.5 py-0.5 rounded-full',n.b==='NEW'?'bg-violet-500 text-white':'bg-rose-500 text-white']">{{n.b}}</span>
       </button>
     </nav>
+    <button @click="logout" title="Keluar" class="mx-3 mt-1 p-2.5 rounded-xl hover:bg-white/5 text-sm flex items-center gap-3 text-slate-300"><i data-lucide="log-out" class="w-[18px] h-[18px] shrink-0"></i><span v-if="!col">Keluar</span></button>
     <button @click="col=!col" class="m-3 p-2 rounded-xl hover:bg-white/5 text-xs flex items-center justify-center gap-2 max-md:hidden"><i data-lucide="chevrons-left-right" class="w-4 h-4"></i><span v-if="!col">Ciutkan menu</span></button>
   </aside>
 
@@ -68,7 +70,7 @@ html,body,#app{height:100%;margin:0}body{font-family:Inter,sans-serif;background
       <h1 class="font-semibold text-slate-800 truncate">{{title}}</h1>
       <div class="ml-auto flex items-center gap-2">
         <button v-if="role==='guru'" @click="openForm('presensi')" class="hidden sm:flex items-center gap-2 text-sm text-white px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 shadow-md shadow-indigo-500/25 hover:brightness-110 transition"><i data-lucide="plus" class="w-4 h-4"></i>Presensi cepat</button>
-        <button @click="logout" title="Keluar" aria-label="Keluar" class="p-2 rounded-lg hover:bg-slate-100"><i data-lucide="log-out" class="w-5 h-5 text-slate-500"></i></button>
+        <button @click="logout" class="flex items-center gap-1.5 text-sm text-slate-600 px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50"><i data-lucide="log-out" class="w-4 h-4"></i>Keluar</button>
         <button @click="go(role==='siswa'?'s-pw':'profil')" class="flex items-center gap-2 pl-2 border-l border-slate-200">
           <span class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white grid place-items-center text-sm font-semibold">{{ini}}</span>
           <span class="hidden sm:block text-sm font-medium text-slate-700">{{user.nama||'Pengguna'}}</span>
