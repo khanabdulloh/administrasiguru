@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIMAS CALM - SMKS Ciledug Al-Musaddadiyah</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/vue@3.5.13/dist/vue.global.prod.js"></script>
+<script src="https://unpkg.com/lucide@0.462.0/dist/umd/lucide.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+html,body,#app{height:100%;margin:0}body{font-family:Inter,sans-serif;background:#F1F5F9}
+.inp{width:100%;border:1px solid #e2e8f0;border-radius:.75rem;padding:.6rem .8rem;font-size:.875rem;outline:none;transition:.15s;background:#fff}
+.inp:focus{box-shadow:0 0 0 3px #c7d2fe;border-color:#6366f1}
+.pop{animation:pop .18s ease-out}@keyframes pop{from{transform:scale(.95);opacity:0}}
+*{scrollbar-width:thin;scrollbar-color:#cbd5e1 transparent}
+:focus-visible{outline:2px solid #6366f1;outline-offset:2px}
+.wave{display:inline-block;transform-origin:70% 70%;animation:wave 2s 2}@keyframes wave{0%,60%,100%{transform:rotate(0)}10%,30%{transform:rotate(14deg)}20%,40%{transform:rotate(-8deg)}50%{transform:rotate(10deg)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.print-only{display:none}
+@page{size:A4;margin:12mm}
+@media print{tr{break-inside:avoid}body *{visibility:hidden}.print-only,.print-only *{visibility:visible}.print-only{display:block;position:absolute;left:0;top:0;width:100%;padding:24px}}
+</style>
+</head>
+<body>
+<div id="app">
+<div v-if="!user" class="min-h-full grid lg:grid-cols-2 bg-[#0F172A]">
+  <div class="hidden lg:flex flex-col justify-between p-12 text-white bg-gradient-to-br from-indigo-700 via-indigo-800 to-slate-900">
+    <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-xl bg-white/15 grid place-items-center"><i data-lucide="graduation-cap" class="w-5 h-5"></i></div><b>SIMAS CALM</b></div>
+    <div><h1 class="text-4xl font-bold leading-tight">Sistem Manajemen Sekolah<br>SMKS Ciledug Al-Musaddadiyah</h1><p class="mt-4 text-indigo-100 max-w-md">Presensi, nilai, jurnal, dan bimbingan dalam satu tempat untuk guru dan siswa.</p></div>
+    <p class="text-xs text-indigo-200">© {{new Date().getFullYear()}} SMKS Ciledug Al-Musaddadiyah, Garut</p>
+  </div>
+  <div class="grid place-items-center p-6 bg-slate-50 min-h-screen">
+    <form @submit.prevent="doLogin" class="w-full max-w-sm bg-white rounded-2xl border border-slate-100 shadow-xl p-7 space-y-4">
+      <div><h2 class="text-xl font-bold text-slate-800">Selamat datang</h2><p class="text-sm text-slate-500">Masuk untuk melanjutkan.</p></div>
+      <div class="grid grid-cols-2 gap-1 p-1 bg-slate-100 rounded-xl text-sm"><button type="button" v-for="r in [['guru','Guru / Admin'],['siswa','Siswa']]" :key="r[0]" @click="lg.role=r[0];lg.err=''" :class="['py-2 rounded-lg font-medium transition',lg.role===r[0]?'bg-white text-indigo-700 shadow-sm':'text-slate-500']">{{r[1]}}</button></div>
+      <div><label class="text-xs text-slate-500">{{lg.role==='siswa'?'NIS':'Username'}}</label><input v-model.trim="lg.u" class="inp mt-1" autocomplete="username" required></div>
+      <div><label class="text-xs text-slate-500">Password</label><div class="relative"><input :type="lg.show?'text':'password'" v-model="lg.p" class="inp mt-1 pr-16" autocomplete="current-password" required><button type="button" @click="lg.show=!lg.show" class="absolute right-3 top-3.5 text-xs text-slate-400 hover:text-indigo-600">{{lg.show?'Sembunyikan':'Lihat'}}</button></div></div>
+      <p v-if="lg.err" role="alert" class="text-sm text-rose-600 bg-rose-50 rounded-lg px-3 py-2">{{lg.err}}</p>
+      <button :disabled="busy" class="w-full py-2.5 rounded-xl text-white text-sm font-medium bg-gradient-to-r from-indigo-600 to-violet-600 shadow-md shadow-indigo-500/25 disabled:opacity-60">{{busy?'Memeriksa...':'Masuk'}}</button>
+      <p class="text-xs text-slate-400 text-center">{{lg.role==='siswa'?'Password awal siswa adalah NIS.':'Akun awal: admin / admin123. Segera ganti di Profil Saya.'}}</p>
+      <p v-if="demo" class="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">Mode demo: data hanya tersimpan di browser ini. Isi API_URL agar siswa di perangkat lain bisa masuk.</p>
+    </form>
+  </div>
+</div>
+<div v-else class="flex h-full overflow-hidden">
+  <!-- Sidebar -->
+  <aside :class="[col?'w-[72px]':'w-64','bg-[#0F172A] text-slate-300 flex flex-col transition-all duration-200 shrink-0 max-md:fixed max-md:z-30 max-md:h-full',mob?'':'max-md:-translate-x-full']">
+    <div class="h-16 flex items-center gap-3 px-5 border-b border-white/10">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 grid place-items-center text-white shrink-0"><i data-lucide="graduation-cap" class="w-5 h-5"></i></div>
+      <div v-if="!col" class="leading-tight"><b class="text-white tracking-tight">SIMAS CALM</b><p class="mt-0.5"><span class="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-500/25 text-indigo-200">{{role==='siswa'?'SISWA':'ADMINISTRATOR'}}</span></p></div>
+    </div>
+    <nav class="flex-1 overflow-y-auto p-3 space-y-1">
+      <button v-for="n in nav" :key="n.k" @click="go(n.k)" :title="n.t" :class="['w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition',page===n.k?'bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,.1),0_4px_12px_rgba(0,0,0,.35)]':'hover:bg-white/5']">
+        <i :data-lucide="n.i" class="w-[18px] h-[18px] shrink-0"></i>
+        <span v-if="!col" class="flex-1 text-left">{{n.t}}</span>
+        <span v-if="!col&&n.b" :class="['text-[10px] px-1.5 py-0.5 rounded-full',n.b==='NEW'?'bg-violet-500 text-white':'bg-rose-500 text-white']">{{n.b}}</span>
+      </button>
+    </nav>
+    <button @click="col=!col" class="m-3 p-2 rounded-xl hover:bg-white/5 text-xs flex items-center justify-center gap-2 max-md:hidden"><i data-lucide="chevrons-left-right" class="w-4 h-4"></i><span v-if="!col">Ciutkan menu</span></button>
+  </aside>
+
+  <div v-if="mob" class="md:hidden fixed inset-0 z-20 bg-slate-900/50" @click="mob=false"></div>
+  <div class="flex-1 flex flex-col min-w-0">
+    <!-- Topbar -->
+    <header class="h-16 shrink-0 sticky top-0 z-20 bg-white/70 backdrop-blur-xl border-b border-slate-200/70 flex items-center gap-3 px-4 md:px-6">
+      <button class="md:hidden p-2 rounded-lg hover:bg-slate-100" @click="mob=!mob"><i data-lucide="menu" class="w-5 h-5"></i></button>
+      <h1 class="font-semibold text-slate-800 truncate">{{title}}</h1>
+      <div class="ml-auto flex items-center gap-2">
+        <button v-if="role==='guru'" @click="openForm('presensi')" class="hidden sm:flex items-center gap-2 text-sm text-white px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 shadow-md shadow-indigo-500/25 hover:brightness-110 transition"><i data-lucide="plus" class="w-4 h-4"></i>Presensi cepat</button>
+        <button @click="logout" title="Keluar" aria-label="Keluar" class="p-2 rounded-lg hover:bg-slate-100"><i data-lucide="log-out" class="w-5 h-5 text-slate-500"></i></button>
+        <button @click="go(role==='siswa'?'s-pw':'profil')" class="flex items-center gap-2 pl-2 border-l border-slate-200">
+          <span class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white grid place-items-center text-sm font-semibold">{{ini}}</span>
+          <span class="hidden sm:block text-sm font-medium text-slate-700">{{user.nama||'Pengguna'}}</span>
+        </button>
+      </div>
+    </header>
+    <div v-if="toast" role="status" class="fixed top-20 right-5 z-50 bg-slate-900 text-white text-sm px-4 py-2.5 rounded-xl shadow-xl pop">{{toast}}</div>
+
+    <main class="flex-1 overflow-y-auto p-4 md:p-6">
+      <div v-if="page==='dashboard'||page==='s-dash'" class="mb-6 rounded-2xl p-6 md:p-8 text-white bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 shadow-xl flex flex-wrap items-center justify-between gap-4">
+        <div><p class="text-sm text-indigo-200">{{tglNow()}}</p><h2 class="text-2xl md:text-3xl font-bold mt-1">Halo, {{user.nama}}! <span class="wave">👋</span></h2><p class="text-sm text-slate-300 mt-1">{{role==='siswa'?('Kelas '+(user.kelas||'-')):'Semoga hari mengajar Anda menyenangkan.'}}</p></div>
+        <div class="text-4xl md:text-5xl font-semibold tabular-nums tracking-tight"><live-clock></live-clock></div>
+      </div>
+      <!-- Portal siswa -->
+      <section v-if="page==='s-dash'" class="space-y-6">
+        <div class="grid sm:grid-cols-2 gap-4">
+          <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex items-center gap-4"><div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 grid place-items-center"><i data-lucide="user-check" class="w-6 h-6"></i></div><div><p class="text-sm text-slate-500">Kehadiran saya</p><p class="text-3xl font-bold text-slate-800">{{sStat.hadir}}%</p><p class="text-xs text-emerald-600 font-medium">{{sStat.hadirLbl}}</p></div></div>
+          <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex items-center gap-4"><div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 grid place-items-center"><i data-lucide="award" class="w-6 h-6"></i></div><div><p class="text-sm text-slate-500">Rata-rata nilai</p><p class="text-3xl font-bold text-slate-800">{{sStat.avg}}</p><p class="text-xs text-indigo-600 font-medium">Dari {{sStat.n}} penilaian semester ini</p></div></div>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+          <h3 class="font-semibold text-slate-800 mb-1">Mata pelajaran Anda hari ini</h3>
+          <div v-if="!sJadwal.length" class="text-center py-8"><div class="mx-auto w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 grid place-items-center mb-3"><i data-lucide="coffee" class="w-6 h-6"></i></div><p class="font-medium text-slate-700">Nikmati waktu istirahat!</p><p class="text-sm text-slate-400">Tidak ada jadwal pelajaran hari {{hari}}.</p></div>
+          <div v-for="j in sJadwal" :key="j.id" class="flex items-center gap-4 py-3 border-b last:border-0 border-slate-100"><span class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 grid place-items-center font-bold">{{j.jam}}</span><div><p class="font-medium text-slate-800">{{j.mapel}}</p><p class="text-xs text-slate-500">{{j.waktu}} · Kelas {{j.kelas}}</p></div></div>
+        </div>
+      </section>
+      <section v-else-if="SM[page]" class="bg-white rounded-2xl border border-slate-100 shadow-sm">
+        <div class="p-4 md:p-5 flex flex-wrap items-center gap-3 border-b border-slate-100"><h3 class="font-semibold text-slate-800 mr-auto">{{SM[page].t}}</h3>
+          <select v-if="page==='s-hadir'" v-model="fb" class="inp !w-auto" aria-label="Filter bulan"><option value="">Semua riwayat</option><option v-for="b in bulanOpts" :key="b" :value="b">{{bulan(b)}}</option></select></div>
+        <div class="overflow-x-auto"><table class="w-full text-sm">
+          <thead><tr class="text-left text-slate-500 bg-slate-50/70"><th class="px-5 py-3 font-medium w-12">No</th><th v-for="c in SM[page].c" :key="c" class="px-5 py-3 font-medium whitespace-nowrap">{{lbl(c)}}</th></tr></thead>
+          <tbody>
+            <tr v-for="(r,i) in sRows" :key="r.id||i" class="border-t border-slate-100"><td class="px-5 py-3 text-slate-400">{{i+1}}</td>
+              <td v-for="c in SM[page].c" :key="c" class="px-5 py-3 text-slate-700">
+                <span v-if="badge[r[c]]" :class="['px-2.5 py-1 rounded-full text-xs font-medium',badge[r[c]]]">{{r[c]}}</span>
+                <b v-else-if="c==='nilai'" class="text-slate-900">{{r[c]}}</b>
+                <span v-else-if="c==='tanggal'" class="whitespace-nowrap">{{fmt(r[c])}}</span>
+                <span v-else>{{r[c]||'-'}}</span></td></tr>
+            <tr v-if="!sRows.length"><td :colspan="SM[page].c.length+2" class="py-14 text-center text-slate-400">{{SM[page].e}}</td></tr>
+          </tbody></table></div>
+      </section>
+      <section v-else-if="page==='s-pw'" class="max-w-md">
+        <form @submit.prevent="chpw" class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-3">
+          <div><h3 class="font-semibold text-slate-800">Ganti password</h3><p class="text-sm text-slate-500">Gunakan minimal 6 karakter.</p></div>
+          <div><label class="text-xs text-slate-500">NIS</label><input :value="user.nis" disabled class="inp mt-1 bg-slate-50 text-slate-500"></div>
+          <div><label class="text-xs text-slate-500">Password lama</label><input type="password" v-model="pw.old" class="inp mt-1" autocomplete="current-password" required></div>
+          <div><label class="text-xs text-slate-500">Password baru</label><input type="password" v-model="pw.n" class="inp mt-1" autocomplete="new-password" minlength="6" required></div>
+          <div><label class="text-xs text-slate-500">Konfirmasi password baru</label><input type="password" v-model="pw.n2" class="inp mt-1" autocomplete="new-password" required></div>
+          <button class="px-4 py-2.5 rounded-xl text-white text-sm bg-gradient-to-r from-indigo-600 to-violet-600">Simpan password</button>
+        </form>
+      </section>
+      <!-- Dashboard guru -->
+      <section v-else-if="role==='guru'&&page==='dashboard'" class="space-y-6">
+        <div class="grid grid-cols-2 xl:grid-cols-4 gap-4">
+          <div v-for="s in stats" :key="s.l" class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+            <div :class="['w-10 h-10 rounded-xl grid place-items-center mb-3',s.c]"><i :data-lucide="s.i" class="w-5 h-5"></i></div>
+            <p class="text-2xl font-bold text-slate-800">{{s.v}}</p><p class="text-sm text-slate-500">{{s.l}}</p>
+          </div>
+        </div>
+        <div class="grid lg:grid-cols-3 gap-4">
+          <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+            <h3 class="font-semibold text-slate-800 mb-1">Jadwal mengajar hari {{hari}}</h3>
+            <p v-if="!jadwalHariIni.length" class="text-sm text-slate-400 py-6">Belum ada jadwal hari ini. Tambahkan lewat menu Jadwal Mengajar.</p>
+            <div v-for="j in jadwalHariIni" :key="j.id" class="flex items-center gap-4 py-3 border-b last:border-0 border-slate-100">
+              <span class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 grid place-items-center font-bold">{{j.jam}}</span>
+              <div class="flex-1"><p class="font-medium text-slate-800">{{j.mapel}} · {{j.kelas}}</p><p class="text-xs text-slate-500">{{j.waktu}} · {{j.ruang}}</p></div>
+            </div>
+          </div>
+          <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+            <h3 class="font-semibold text-slate-800 mb-3">Aksi cepat</h3>
+            <div class="grid gap-2">
+              <button v-for="q in quick" :key="q.k" @click="go(q.k);openForm(q.k)" class="flex items-center gap-3 p-3 rounded-xl bg-slate-50 hover:bg-indigo-50 hover:text-indigo-700 text-sm text-slate-700 transition"><i :data-lucide="q.i" class="w-4 h-4"></i>{{q.t}}</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Rekap presensi -->
+      <section v-else-if="page==='presensi'&&vw==='rekap'" class="space-y-5">
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-wrap items-center gap-3"><div v-if="page==='presensi'" class="inline-flex p-1 bg-slate-100 rounded-xl text-xs"><button @click="vw='data'" :class="['px-3 py-1.5 rounded-lg font-medium',vw==='data'?'bg-white text-indigo-700 shadow-sm':'text-slate-500']">Input &amp; riwayat</button><button @click="vw='rekap'" :class="['px-3 py-1.5 rounded-lg font-medium',vw==='rekap'?'bg-white text-indigo-700 shadow-sm':'text-slate-500']">Rekap bulanan</button></div>
+          <input type="month" v-model="bln" class="inp !w-auto" aria-label="Bulan"><select v-model="fil" class="inp !w-auto" aria-label="Kelas"><option value="">Semua kelas</option><option v-for="o in filOpts" :key="o">{{o}}</option></select></div>
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5"><h3 class="font-semibold text-slate-800">Grafik kehadiran {{bulan(bl)}}</h3>
+          <div v-for="r in rkTot" :key="r.l" class="flex items-center gap-3 mt-3 text-sm"><span class="w-12 text-slate-500">{{r.l}}</span><div class="flex-1 h-3 rounded-full bg-slate-100 overflow-hidden"><div :style="{width:r.p+'%'}" :class="['h-full rounded-full transition-all',r.bar]"></div></div><span class="w-20 text-right text-slate-700">{{r.v}} ({{r.p}}%)</span></div></div>
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-x-auto"><table class="w-full text-xs">
+          <thead><tr class="text-slate-500 bg-slate-50/70"><th class="px-3 py-2.5 text-left font-medium sticky left-0 bg-slate-50">Siswa</th><th v-for="d in dim" :key="d" class="px-1.5 py-2.5 font-medium">{{d}}</th><th v-for="k in ['H','I','S','A']" :key="k" class="px-2 py-2.5 font-semibold text-slate-700">{{k}}</th></tr></thead>
+          <tbody><tr v-for="r in rkRows" :key="r.siswa" class="border-t border-slate-100"><td class="px-3 py-2 font-medium text-slate-700 whitespace-nowrap sticky left-0 bg-white">{{r.siswa}}</td>
+            <td v-for="d in dim" :key="d" class="text-center px-1 py-1.5"><span v-if="r.d[d]" :class="['inline-block w-5 rounded text-[10px] font-semibold leading-5',badge[r.d[d]]]">{{r.d[d][0]}}</span></td>
+            <td v-for="k in ['H','I','S','A']" :key="k" class="text-center px-2 font-semibold text-slate-700">{{r[k]}}</td></tr>
+            <tr v-if="!rkRows.length"><td :colspan="dim+5" class="py-14 text-center text-slate-400">Belum ada presensi pada bulan ini.</td></tr></tbody></table></div>
+      </section>
+      <!-- Modul generik -->
+      <section v-else-if="M[page]" class="bg-white rounded-2xl border border-slate-100 shadow-sm">
+        <div class="p-4 md:p-5 flex flex-wrap items-center gap-3 border-b border-slate-100">
+          <div v-if="page==='presensi'" class="inline-flex p-1 bg-slate-100 rounded-xl text-xs"><button @click="vw='data'" :class="['px-3 py-1.5 rounded-lg font-medium',vw==='data'?'bg-white text-indigo-700 shadow-sm':'text-slate-500']">Input &amp; riwayat</button><button @click="vw='rekap'" :class="['px-3 py-1.5 rounded-lg font-medium',vw==='rekap'?'bg-white text-indigo-700 shadow-sm':'text-slate-500']">Rekap bulanan</button></div>
+          <button v-if="page==='nilai'||page==='presensi'" @click="ar=!ar" :aria-pressed="ar" :class="['btn2',ar?'!bg-indigo-50 !text-indigo-700 !border-indigo-200':'']"><i data-lucide="history" class="w-4 h-4"></i>45 hari terakhir</button>
+          <div class="relative flex-1 min-w-[180px]"><i data-lucide="search" class="w-4 h-4 absolute left-3 top-3 text-slate-400"></i><input v-model="q" class="inp pl-9" placeholder="Cari data..."></div>
+          <select v-if="M[page].filter" v-model="fil" class="inp !w-auto"><option value="">Semua {{M[page].filter}}</option><option v-for="o in filOpts">{{o}}</option></select>
+          <button @click="exportCsv" class="btn2"><i data-lucide="download" class="w-4 h-4"></i>Excel/CSV</button>
+          <button @click="printTable" class="btn2"><i data-lucide="printer" class="w-4 h-4"></i>Cetak PDF</button>
+          <button @click="openForm(page)" class="flex items-center gap-2 text-sm text-white px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 shadow-md shadow-indigo-500/25"><i data-lucide="plus" class="w-4 h-4"></i>Tambah</button>
+        </div>
+        <div v-if="M[page].rekap" class="px-5 pt-4 flex flex-wrap gap-2 text-xs">
+          <span v-for="r in rekap" :key="r.l" :class="['px-3 py-1.5 rounded-full font-medium',r.c]">{{r.l}}: {{r.v}}</span>
+        </div>
+        <div class="overflow-x-auto"><table class="w-full text-sm">
+          <thead><tr class="text-left text-slate-500 bg-slate-50/70"><th v-for="c in M[page].c" :key="c" @click="sort(c)" class="px-5 py-3 font-medium cursor-pointer select-none whitespace-nowrap">{{lbl(c)}} <span v-if="sk===c">{{sd>0?'↑':'↓'}}</span></th><th class="px-5 py-3"></th></tr></thead>
+          <tbody>
+            <tr v-for="r in paged" :key="r.id" class="border-t border-slate-100 hover:bg-slate-50/80 transition">
+              <td v-for="c in M[page].c" :key="c" class="px-5 py-3 text-slate-700">
+                <span v-if="badge[r[c]]" :class="['px-2.5 py-1 rounded-full text-xs font-medium',badge[r[c]]]">{{r[c]}}</span>
+                <a v-else-if="c==='link'" :href="safeUrl(r[c])" target="_blank" rel="noopener" class="text-indigo-600 font-medium hover:underline">Buka link</a>
+                <span v-else>{{r[c]}}</span>
+              </td>
+              <td class="px-5 py-3 text-right whitespace-nowrap">
+                <button @click="detail=r" title="Lihat detail" aria-label="Lihat detail" class="ic hover:text-indigo-600"><i data-lucide="eye" class="w-4 h-4"></i></button>
+                <button @click="openForm(page,r)" title="Ubah" aria-label="Ubah" class="ic hover:text-amber-600"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+                <button v-if="page==='jurnal'||page==='bimbingan'" @click="printRec(r)" title="Cetak PDF resmi" aria-label="Cetak PDF resmi" class="ic hover:text-emerald-600"><i data-lucide="file-down" class="w-4 h-4"></i></button>
+                <button v-if="page==='siswa'" @click="resetPw(r)" title="Reset password ke NIS" aria-label="Reset password" class="ic hover:text-indigo-600"><i data-lucide="key-round" class="w-4 h-4"></i></button>
+                <button @click="del(r)" title="Hapus" aria-label="Hapus" class="ic hover:text-rose-600"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </td>
+            </tr>
+            <tr v-if="!paged.length"><td :colspan="M[page].c.length+1" class="py-14 text-center"><div class="mx-auto w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 grid place-items-center mb-3"><i data-lucide="inbox" class="w-6 h-6"></i></div><p class="font-medium text-slate-700">{{q||fil?'Tidak ada data yang cocok':'Belum ada data'}}</p><p class="text-sm text-slate-400 mt-1">{{q||fil?'Ubah kata kunci atau filter pencarian.':'Klik Tambah untuk mulai mengisi.'}}</p></td></tr>
+          </tbody></table></div>
+        <div class="p-4 flex items-center justify-between text-sm text-slate-500 border-t border-slate-100">
+          <span>{{rows.length}} data</span>
+          <div class="flex items-center gap-2"><button class="btn2" :disabled="pg<=1" @click="pg--">Sebelumnya</button><span>{{pg}} / {{pages}}</span><button class="btn2" :disabled="pg>=pages" @click="pg++">Berikutnya</button></div>
+        </div>
+      </section>
+
+      <!-- Pengaturan -->
+      <section v-else-if="page==='pengaturan'" class="grid xl:grid-cols-2 gap-5">
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3">
+          <h3 class="font-semibold text-slate-800">Identitas & kop surat</h3>
+          <div v-for="f in setF" :key="f[0]"><label class="text-xs text-slate-500">{{f[1]}}</label><input v-model="set[f[0]]" class="inp mt-1"></div>
+          <div class="grid grid-cols-3 gap-3">
+            <div><label class="text-xs text-slate-500">Ukuran font nama</label><input type="number" v-model="set.fs" class="inp mt-1"></div>
+            <div><label class="text-xs text-slate-500">Perataan</label><select v-model="set.al" class="inp mt-1"><option value="center">Tengah</option><option value="left">Kiri</option></select></div>
+            <div><label class="text-xs text-slate-500">Cetak tebal</label><select v-model="set.bold" class="inp mt-1"><option value="1">Ya</option><option value="0">Tidak</option></select></div>
+          </div>
+          <div class="flex flex-wrap gap-2 pt-2">
+            <button @click="saveSet" class="px-4 py-2.5 rounded-xl text-white text-sm bg-gradient-to-r from-indigo-600 to-violet-600">Simpan semua pengaturan</button>
+            <button @click="backup" class="btn2">Backup data (CSV)</button>
+            <button @click="resetSem" class="btn2 !text-rose-600">Reset data semester</button>
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+          <h3 class="font-semibold text-slate-800 mb-3">Pratinjau kop surat</h3>
+          <div v-html="kop" class="border border-dashed border-slate-300 rounded-xl p-4"></div>
+        </div>
+      </section>
+
+      <!-- Profil -->
+      <section v-else-if="page==='profil'" class="max-w-2xl space-y-5">
+        <div class="rounded-2xl p-6 text-white bg-gradient-to-br from-indigo-600 to-violet-700 shadow-xl flex items-center gap-4">
+          <span class="w-16 h-16 rounded-2xl bg-white/20 grid place-items-center text-2xl font-bold">{{ini}}</span>
+          <div><p class="text-lg font-semibold">{{prof.nama||'Nama belum diisi'}}</p><p class="text-indigo-100 text-sm">@{{prof.username||'username'}} · Lisensi aktif</p></div>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3">
+          <div><label class="text-xs text-slate-500">Nama lengkap</label><input v-model="prof.nama" class="inp mt-1"></div>
+          <div><label class="text-xs text-slate-500">Username</label><input v-model="prof.username" class="inp mt-1"></div>
+          <div class="grid sm:grid-cols-3 gap-3"><div><label class="text-xs text-slate-500">Password lama</label><input type="password" v-model="prof.old" class="inp mt-1" autocomplete="current-password"></div><div><label class="text-xs text-slate-500">Password baru</label><input type="password" v-model="prof.pw" class="inp mt-1"></div><div><label class="text-xs text-slate-500">Konfirmasi password</label><input type="password" v-model="prof.pw2" class="inp mt-1"></div></div>
+          <button @click="saveProf" class="px-4 py-2.5 rounded-xl text-white text-sm bg-gradient-to-r from-indigo-600 to-violet-600">Simpan profil</button>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 text-sm grid sm:grid-cols-3 gap-3">
+          <a href="#" class="p-3 rounded-xl bg-slate-50 hover:bg-indigo-50">Link afiliasi</a><a href="#" class="p-3 rounded-xl bg-slate-50 hover:bg-indigo-50">Request fitur</a><span class="p-3 rounded-xl bg-emerald-50 text-emerald-700">Status lisensi: Aktif</span>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <datalist id="dl-kelas"><option v-for="k in kelasOpts" :key="k" :value="k"></option></datalist>
+  <!-- Modal form -->
+  <div v-if="form" class="fixed inset-0 z-40 grid place-items-center p-4 backdrop-blur-md bg-slate-900/40" @click.self="form=null">
+    <div class="pop bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6">
+      <div class="flex items-center justify-between mb-4"><h3 class="font-semibold text-slate-800">{{form.id?'Ubah':'Tambah'}} {{M[form.m].t}}</h3><button @click="form=null" class="ic"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+      <div class="grid gap-3">
+        <div v-for="f in M[form.m].f" :key="f[0]">
+          <label class="text-xs text-slate-500">{{f[1]}}</label>
+          <select v-if="f[2]==='select'" v-model="form.d[f[0]]" class="inp mt-1"><option v-for="o in opts(f)" :value="o">{{o||'Pilih...'}}</option></select>
+          <textarea v-else-if="f[2]==='area'" v-model="form.d[f[0]]" rows="3" class="inp mt-1"></textarea>
+          <input v-else :type="f[2]==='kelas'?'text':(f[2]||'text')" :list="f[2]==='kelas'?'dl-kelas':null" v-model="form.d[f[0]]" class="inp mt-1" autocomplete="off">
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 mt-5"><button class="btn2" @click="form=null">Batal</button><button @click="save" class="px-4 py-2.5 rounded-xl text-white text-sm bg-gradient-to-r from-indigo-600 to-violet-600">Simpan</button></div>
+    </div>
+  </div>
+  <!-- Modal detail -->
+  <div v-if="detail" class="fixed inset-0 z-40 grid place-items-center p-4 backdrop-blur-md bg-slate-900/40" @click.self="detail=null">
+    <div class="pop bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+      <h3 class="font-semibold text-slate-800 mb-3">Detail data</h3>
+      <dl class="space-y-2 text-sm"><div v-for="f in M[page].f" :key="f[0]" class="flex gap-3"><dt class="w-32 text-slate-500 shrink-0">{{f[1]}}</dt><dd class="text-slate-800 break-words">{{detail[f[0]]||'-'}}</dd></div></dl>
+      <button class="btn2 mt-4" @click="detail=null">Tutup</button>
+    </div>
+  </div>
+  <!-- Area cetak -->
+  <div class="print-only"><div v-html="kop"></div><h3 style="text-align:center;font-weight:700;margin:12px 0">{{M[page]?M[page].t:''}}</h3>
+    <table v-if="M[page]&&pr" style="width:100%;border-collapse:collapse;font-size:13px"><tr v-for="f in M[page].f" :key="f[0]"><td style="border:1px solid #000;padding:6px;width:30%;vertical-align:top">{{f[1]}}</td><td style="border:1px solid #000;padding:6px;white-space:pre-wrap">{{pr[f[0]]||'-'}}</td></tr></table>
+    <table style="width:100%;border-collapse:collapse;font-size:12px" v-if="M[page]&&!pr"><tr><th v-for="c in M[page].c" style="border:1px solid #000;padding:4px">{{lbl(c)}}</th></tr><tr v-for="r in rows"><td v-for="c in M[page].c" style="border:1px solid #000;padding:4px">{{r[c]}}</td></tr></table>
+    <div style="margin-top:32px;display:flex;justify-content:space-between;font-size:12px"><div><br>{{set.jabPimpinan||'Kepala Sekolah'}}<br><br><br><b><u>{{set.pimpinan}}</u></b><br>NIP. {{set.nipPimpinan}}</div><div>{{page==='bimbingan'?'Wali Kelas':'Guru Mata Pelajaran'}}<br><br><br><br><b><u>{{set.guru}}</u></b><br>NIP. {{set.nipGuru}}</div></div></div>
+</div></div>
+<style>.btn2{display:inline-flex;align-items:center;gap:.4rem;font-size:.8rem;padding:.55rem .85rem;border-radius:.75rem;border:1px solid #e2e8f0;background:#fff;color:#475569}.btn2:hover{background:#f8fafc}.btn2:disabled{opacity:.4}.ic{padding:.4rem;border-radius:.5rem;color:#94a3b8}.ic:hover{background:#f1f5f9}</style>
+
+<script>
+// ===== Konfigurasi: tempel URL Web App Apps Script. Kosong = mode demo (localStorage browser) =====
+const API_URL = '';
+const DEF={nama:'Administrator',username:'admin',pw:'admin123'}; // akun guru awal (mode demo)
+const SM={'s-hadir':{t:'Kehadiran Saya',src:'presensi',c:['tanggal','status','catatan'],e:'Belum ada riwayat kehadiran.'},'s-nilai':{t:'Nilai Saya',src:'nilai',c:['mapel','tp','jenis','nilai'],e:'Belum ada nilai yang diinput guru.'},'s-bimb':{t:'Catatan Bimbingan',src:'bimbingan',c:['tanggal','kategori','catatan','tindak'],e:'Belum ada catatan bimbingan.'}};
+const JURUSAN=['AKL','BD','DKV','TKJ','TKR','TSM','MP']; // AKL, Bisnis Digital, DKV, Teknik Komputer & Jaringan, Teknik Kendaraan Ringan, Teknik Sepeda Motor, Manajemen Perkantoran
+const M = {
+  siswa:{t:'Kelola Siswa & Kelas',f:[['nis','NIS/NISN'],['nama','Nama lengkap'],['gender','Gender','select',['L','P']],['kelas','Kelas/Rombel (mis. X TKJ 1)','kelas'],['jurusan','Kompetensi keahlian','select',['',...JURUSAN]],['kontak','Kontak ortu/siswa','tel'],['foto','Link foto']],c:['nis','nama','gender','kelas','jurusan','kontak'],filter:'kelas'},
+  jadwal:{t:'Jadwal Mengajar',f:[['hari','Hari','select',['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu']],['jam','Jam ke','number'],['waktu','Waktu (07:00-07:40)'],['kelas','Kelas','kelas'],['mapel','Mata pelajaran'],['ruang','Ruangan']],c:['hari','jam','waktu','kelas','mapel','ruang'],filter:'hari'},
+  presensi:{t:'Presensi Siswa',f:[['tanggal','Tanggal','date'],['kelas','Kelas','kelas'],['mapel','Mata pelajaran'],['siswa','Siswa','select','siswa'],['status','Status','select',['Hadir','Izin','Sakit','Alpa']],['catatan','Catatan keterangan']],c:['tanggal','kelas','siswa','mapel','status','catatan'],filter:'kelas',rekap:1},
+  nilai:{t:'Manajemen Nilai',f:[['tanggal','Tanggal','date'],['kelas','Kelas','kelas'],['mapel','Mata pelajaran'],['jenis','Jenis penilaian','select',['Tugas','UH','Praktik','PTS','PAS','UKK']],['tp','Tujuan pembelajaran (TP)'],['deskripsi','Deskripsi tugas'],['siswa','Siswa','select','siswa'],['nilai','Nilai (0-100)','number']],c:['tanggal','kelas','mapel','jenis','tp','siswa','nilai'],filter:'jenis',rekap:2},
+  jurnal:{t:'Jurnal Mengajar',f:[['tanggal','Tanggal','date'],['kelas','Kelas','kelas'],['mapel','Mata pelajaran'],['pertemuan','Pertemuan ke','number'],['jam','Jam ke'],['tp','Tujuan pembelajaran','area'],['kegiatan','Deskripsi kegiatan','area'],['hambatan','Hambatan & solusi','area']],c:['tanggal','kelas','mapel','pertemuan','jam','tp'],filter:'kelas'},
+  bimbingan:{t:'Bimbingan Wali',f:[['tanggal','Tanggal','date'],['kelas','Kelas','kelas'],['siswa','Siswa','select','siswa'],['kategori','Kategori','select',['Akademik','Perilaku','Absensi']],['catatan','Catatan konseling','area'],['tindak','Tindak lanjut/solusi','area']],c:['tanggal','kelas','siswa','kategori','catatan'],filter:'kategori'},
+  dokumen:{t:'Dokumen Digital',f:[['nama','Nama dokumen'],['link','Link / URL dokumen','url']],c:['nama','link']}
+};
+const BADGE={Hadir:'bg-emerald-50 text-emerald-700',Izin:'bg-amber-50 text-amber-700',Sakit:'bg-sky-50 text-sky-700',Alpa:'bg-rose-50 text-rose-700',Akademik:'bg-indigo-50 text-indigo-700',Perilaku:'bg-violet-50 text-violet-700',Absensi:'bg-amber-50 text-amber-700',L:'bg-blue-50 text-blue-700',P:'bg-pink-50 text-pink-700'};
+const HARI=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const LBL={nis:'NIS',tp:'Tujuan pembelajaran',jam:'Jam ke',kontak:'Kontak',ruang:'Ruang',jenis:'Jenis penilaian',tindak:'Solusi / tindak lanjut',catatan:'Keterangan'};
+const mem={};const ST={get(k){try{const v=localStorage.getItem(k);return v===null?(mem[k]??null):v}catch(e){return mem[k]??null}},set(k,v){mem[k]=v;try{localStorage.setItem(k,v)}catch(e){}}};
+
+const app=Vue.createApp({
+  data(){return{
+    M,badge:BADGE,busy:false,hasCfg:false,page:'dashboard',col:false,mob:false,toast:'',q:'',fil:'',pg:1,sk:'',sd:1,form:null,detail:null,SM,demo:!API_URL,user:null,lg:{role:'guru',u:'',p:'',show:false,err:''},portal:{presensi:[],nilai:[],bimbingan:[],jadwal:[]},fb:'',ar:false,vw:'data',bln:today().slice(0,7),pr:null,pw:{old:'',n:'',n2:''},dayKey:today(),
+    db:{siswa:[],jadwal:[],presensi:[],nilai:[],jurnal:[],bimbingan:[],dokumen:[]},
+    set:{nama:'SMKS CILEDUG AL-MUSADDADIYAH',baris1:'YAYASAN AL-MUSADDADIYAH GARUT',baris2:'Terakreditasi A | Jl. Mayor Syamsu No.2, Jayaraga, Tarogong Kidul, Garut | Telp. (0262) 4892181 | NPSN 20209207',logoL:'https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEiD-8YPFS6i86EyZZNDUhwuam5ro_mtc9So2muvB7EDWz1Zp6rarLubvVS3vfVVoto_S6SaHlIPPnmNaddUugGUztWkJYhDwwT8CU1BcUuq9TNyxnHKa6B44iDBx6LjR1-z3r7_C34jviaWeOYgk4bNJHsziPV4KR5mQjY69HVhyphenhyphenR3STD4xp-b46x_HeR4/s160/An8Em6pLCtVUNFZTK-rgdQG9pKiDxE1AR7m_1QO_5slD3C5qFXYq7S9suI1ztpViB_aUnbOGE2-Y71AU9SF3GjQzZ09xbw5aat-JT_7ptJ4VcfdGeJ73DWbHD9IDtVHa_16MjCj09HJ4eGBvZMo-removebg-preview.png',logoR:'',fs:18,al:'center',bold:'1',jabPimpinan:'Kepala Sekolah',pimpinan:'KH. M. Nasrullah Ramdhan, M.Si',nipPimpinan:'',guru:'',nipGuru:''},
+    setF:[['logoL','Link logo kiri'],['logoR','Link logo kanan'],['nama','Nama sekolah'],['baris1','Baris kop 1'],['baris2','Baris kop 2 (alamat)'],['jabPimpinan','Sebutan jabatan'],['pimpinan','Nama pimpinan'],['nipPimpinan','NIP pimpinan'],['guru','Nama guru'],['nipGuru','NIP guru']],
+    prof:{nama:'',username:'',pw:'',pw2:'',old:''},
+    navS:[{k:'s-dash',t:'Dashboard',i:'layout-dashboard'},{k:'s-hadir',t:'Kehadiran Saya',i:'user-check'},{k:'s-nilai',t:'Nilai Saya',i:'award'},{k:'s-bimb',t:'Catatan Bimbingan',i:'heart-handshake'},{k:'s-pw',t:'Ganti Password',i:'key-round'}],
+    navG:[{k:'dashboard',t:'Dashboard',i:'layout-dashboard'},{k:'siswa',t:'Kelola Siswa',i:'users'},{k:'jadwal',t:'Jadwal Mengajar',i:'calendar-days'},{k:'presensi',t:'Presensi Siswa',i:'user-check',b:'NEW'},{k:'nilai',t:'Manajemen Nilai',i:'award'},{k:'jurnal',t:'Jurnal Mengajar',i:'notebook-pen'},{k:'bimbingan',t:'Bimbingan Wali',i:'heart-handshake'},{k:'dokumen',t:'Dokumen Digital',i:'folder-open'},{k:'pengaturan',t:'Pengaturan Sekolah',i:'settings'},{k:'profil',t:'Profil Saya',i:'user-round'}],
+    quick:[{k:'presensi',t:'Isi presensi',i:'user-check'},{k:'nilai',t:'Input nilai',i:'award'},{k:'jurnal',t:'Tulis jurnal',i:'notebook-pen'},{k:'siswa',t:'Tambah siswa',i:'user-plus'}]
+  }},
+  computed:{
+    hari(){this.dayKey;return HARI[new Date().getDay()]},
+    bl(){return /^\d{4}-\d{2}$/.test(this.bln)?this.bln:today().slice(0,7)},
+    kelasOpts(){const b=[];for(const t of ['X','XI','XII'])for(const j of JURUSAN)b.push(t+' '+j);return [...new Set([...b,...this.db.siswa.map(s=>s.kelas).filter(Boolean)])].sort((a,b)=>a.localeCompare(b,'id',{numeric:true}))},
+    title(){return (this.nav.find(n=>n.k===this.page)||{}).t},
+    dim(){const [y,m]=this.bl.split('-');return new Date(+y,+m,0).getDate()},
+    rkRows(){const o={};this.db.presensi.filter(p=>String(p.tanggal).startsWith(this.bl)&&(!this.fil||p.kelas===this.fil)).forEach(p=>{const k=p.nis||p.siswa,r=o[k]=o[k]||{siswa:p.siswa,d:{},H:0,I:0,S:0,A:0};r.d[+String(p.tanggal).slice(8,10)]=p.status});
+      return Object.values(o).map(r=>{Object.values(r.d).forEach(v=>{const c={Hadir:'H',Izin:'I',Sakit:'S',Alpa:'A'}[v];if(c)r[c]++});return r}).sort((a,b)=>String(a.siswa).localeCompare(String(b.siswa),'id'))},
+    rkTot(){const t=this.rkRows.reduce((a,r)=>a+r.H+r.I+r.S+r.A,0);return[['Hadir','H','bg-emerald-500'],['Izin','I','bg-amber-500'],['Sakit','S','bg-sky-500'],['Alpa','A','bg-rose-500']].map(([l,k,bar])=>{const v=this.rkRows.reduce((a,r)=>a+r[k],0);return{l,v,bar,p:t?Math.round(v/t*100):0}})},
+    role(){return this.user?this.user.role:''},
+    nav(){return this.role==='siswa'?this.navS:this.navG},
+    ini(){return ((this.user&&this.user.nama)||'G').trim()[0].toUpperCase()},
+    sJadwal(){return this.portal.jadwal.filter(j=>j.hari===this.hari).sort((a,b)=>a.jam-b.jam)},
+    sRows(){const m=SM[this.page];if(!m)return[];let r=[...this.portal[m.src]];if(this.fb)r=r.filter(x=>String(x.tanggal).startsWith(this.fb));return r.sort((a,b)=>String(b.tanggal||'').localeCompare(String(a.tanggal||'')))},
+    bulanOpts(){return [...new Set(this.portal.presensi.map(x=>String(x.tanggal).slice(0,7)).filter(Boolean))].sort().reverse()},
+    sStat(){const p=this.portal.presensi,h=p.filter(x=>x.status==='Hadir').length,pc=p.length?Math.round(h/p.length*100):0,
+      n=this.portal.nilai.filter(x=>String(x.nilai??'').trim()!=='').map(x=>+x.nilai).filter(x=>!isNaN(x));
+      return{hadir:pc,hadirLbl:!p.length?'Belum ada data':pc>=90?'Sangat baik':pc>=75?'Baik':'Perlu ditingkatkan',n:n.length,avg:n.length?(n.reduce((a,b)=>a+b,0)/n.length).toFixed(1):'-'}},
+    jadwalHariIni(){return this.db.jadwal.filter(j=>j.hari===this.hari).sort((a,b)=>a.jam-b.jam)},
+    stats(){this.dayKey;const h=this.db.presensi.filter(p=>p.tanggal===today()),hd=h.filter(p=>p.status==='Hadir').length;
+      return[{l:'Total siswa',v:this.db.siswa.length,i:'users',c:'bg-indigo-50 text-indigo-600'},{l:'Total kelas',v:new Set(this.db.siswa.map(s=>s.kelas)).size,i:'school',c:'bg-violet-50 text-violet-600'},{l:'Kehadiran hari ini',v:(h.length?Math.round(hd/h.length*100):0)+'%',i:'user-check',c:'bg-emerald-50 text-emerald-600'},{l:'Jurnal terisi',v:this.db.jurnal.length,i:'notebook-pen',c:'bg-amber-50 text-amber-600'}]},
+    filOpts(){const k=M[this.page]&&M[this.page].filter;return k?[...new Set((this.db[this.page]||[]).map(r=>r[k]).filter(Boolean))]:[]},
+    rows(){const m=M[this.page];if(!m)return[];let r=this.db[this.page]||[];
+      if(this.fil)r=r.filter(x=>x[m.filter]===this.fil);
+      if(this.ar&&(this.page==='nilai'||this.page==='presensi')){const d=new Date();d.setDate(d.getDate()-45);const l=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');r=r.filter(x=>String(x.tanggal)>=l)}
+      if(this.q)r=r.filter(x=>JSON.stringify(Object.values(x)).toLowerCase().includes(this.q.toLowerCase()));
+      if(this.sk)r=[...r].sort((a,b)=>String(a[this.sk]).localeCompare(String(b[this.sk]),'id',{numeric:true})*this.sd);return r},
+    pages(){return Math.max(1,Math.ceil(this.rows.length/8))},
+    paged(){return this.rows.slice((this.pg-1)*8,this.pg*8)},
+    rekap(){const r=this.rows;if(M[this.page].rekap===1)return['Hadir','Izin','Sakit','Alpa'].map(s=>({l:s,v:r.filter(x=>x.status===s).length,c:BADGE[s]}));
+      const n=r.filter(x=>String(x.nilai??'').trim()!=='').map(x=>+x.nilai).filter(x=>!isNaN(x));return[{l:'Rata-rata',v:n.length?(n.reduce((a,b)=>a+b,0)/n.length).toFixed(1):0,c:'bg-indigo-50 text-indigo-700'},{l:'Tertinggi',v:n.length?Math.max(...n):0,c:'bg-emerald-50 text-emerald-700'},{l:'Terendah',v:n.length?Math.min(...n):0,c:'bg-rose-50 text-rose-700'}]},
+    kop(){const s=this.set,img=u=>u?`<img src="${esc(u)}" style="height:64px;width:64px;object-fit:contain">`:'<div style="width:64px"></div>';
+      return `<div style="display:flex;align-items:center;gap:12px;border-bottom:3px double #000;padding-bottom:8px">${img(s.logoL)}<div style="flex:1;text-align:${s.al==='left'?'left':'center'}"><div style="font-size:12px">${esc(s.baris1)}</div><div style="font-size:${+s.fs||18}px;font-weight:${s.bold==='1'?700:400}">${esc(s.nama)}</div><div style="font-size:11px">${esc(s.baris2)}</div></div>${img(s.logoR)}</div>`}
+  },
+  watch:{page(){this.fb='';this.q='';this.fil='';this.pg=1;this.sk='';this.mob=false},q(){this.pg=1},fil(){this.pg=1},
+    'form.d.kelas'(k,o){const f=this.form;if(!f||o===undefined||k===undefined)return;const sf=M[f.m].f.find(x=>x[3]==='siswa');if(!sf)return;const l=this.opts(sf);if(!l.includes(f.d[sf[0]]))f.d[sf[0]]=l[0]??''},pages(n){if(this.pg>n)this.pg=n}},
+  async mounted(){setInterval(()=>{this.dayKey=today()},6e4);document.addEventListener('keydown',e=>{if(e.key==='Escape'){this.form=null;this.detail=null}});const s=JSON.parse(ST.get('sm_sess')||'null');if(s&&s.e>Date.now())await this.start(s.u,s.t);this.$nextTick(()=>this.icons())},
+  updated(){this.icons()},
+  methods:{
+    go(k){this.page=k},
+    icons(){window.lucide&&lucide.createIcons()},
+    tglNow(){return new Date().toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'})},
+    fmt(s){const d=new Date(s+'T00:00');return isNaN(d)?s:d.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'})},
+    bulan(b){return new Date(b+'-01T00:00').toLocaleDateString('id-ID',{month:'long',year:'numeric'})},
+    localLogin(role,u,p){const g=k=>JSON.parse(ST.get('sm_'+k)||'null');
+      if(role==='siswa'){const r=(g('siswa')||[]).find(x=>String(x.nis)===u);if(!r||!(r.pw?r.pw===p:p===String(r.nis)))throw new Error('NIS atau password salah');return{token:'demo',user:{role:'siswa',nama:r.nama,nis:String(r.nis),kelas:r.kelas}}}
+      const a=g('prof')||{},pw=a.pw||DEF.pw;if(![a.username,DEF.username].includes(u)||p!==pw)throw new Error('Username atau password salah');return{token:'demo',user:{role:'guru',nama:a.nama||DEF.nama,username:a.username||DEF.username}}},
+    async doLogin(){if(this.busy)return;const {role,u,p}=this.lg;this.lg.err='';this.busy=true;
+      try{let r;if(API_URL){const x=await fetch(API_URL,{method:'POST',body:JSON.stringify({action:'login',role,user:u,pw:p})}),j=await x.json();if(!j.ok)throw new Error(j.error);r=j.data}else r=this.localLogin(role,u,p);
+        await this.start(r.user,r.token)}
+      catch(e){const m=e.message||'';this.lg.err=/Failed to fetch|NetworkError|Load failed/.test(m)?'Tidak dapat terhubung ke server. Periksa koneksi internet dan pastikan URL Web App benar (berakhiran /exec) dengan akses "Anyone".':/Unexpected token|JSON/.test(m)?'Server tidak mengembalikan data yang benar. Periksa URL Web App dan izin akses "Anyone".':/Sheet tidak valid|Action tidak dikenal/.test(m)?'Backend belum diperbarui. Deploy ulang Code.gs sebagai versi baru lalu coba lagi.':m}finally{this.busy=false}},
+    async start(u,t){this.user={...u,token:t};ST.set('sm_sess',JSON.stringify({u,t,e:Date.now()+12*36e5}));this.lg.p='';this.page=u.role==='siswa'?'s-dash':'dashboard';
+      if(u.role==='siswa'){try{await this.loadPortal()}catch(e){}}else{this.prof={nama:u.nama,username:u.username||'',pw:'',pw2:'',old:''};await this.loadAll()}},
+    logout(){ST.set('sm_sess','');this.user=null;this.mob=false;this.form=this.detail=this.pr=null;this.fb=this.q=this.fil='';this.vw='data';this.ar=false;this.pw={old:'',n:'',n2:''};this.lg.err='';this.lg.p='';this.portal={presensi:[],nilai:[],bimbingan:[],jadwal:[]};this.prof={nama:'',username:'',pw:'',pw2:'',old:''};for(const k of Object.keys(this.db))this.db[k]=[]},
+    async loadPortal(){let d;if(API_URL)d=await this.api('siswa','portal');else{const g=k=>JSON.parse(ST.get('sm_'+k)||'[]'),n=String(this.user.nis),sw=g('siswa').find(x=>String(x.nis)===n),m=r=>String(r.nis||'')===n||(!r.nis&&sw&&r.siswa===sw.nama);
+      d={presensi:g('presensi').filter(m),nilai:g('nilai').filter(m),bimbingan:g('bimbingan').filter(m),jadwal:g('jadwal').filter(j=>sw&&j.kelas===sw.kelas)}}
+      this.portal={presensi:[],nilai:[],bimbingan:[],jadwal:[],...d}},
+    async chpw(){const {old,n,n2}=this.pw;if(n.length<6)return this.notify('Password baru minimal 6 karakter');if(n!==n2)return this.notify('Konfirmasi password tidak sama');
+      try{if(API_URL)await this.api('siswa','account',{old,new:n});else{const a=JSON.parse(ST.get('sm_siswa')||'[]'),r=a.find(x=>String(x.nis)===String(this.user.nis));if(!r||!(r.pw?r.pw===old:old===String(r.nis)))throw new Error('Password lama salah');r.pw=n;ST.set('sm_siswa',JSON.stringify(a))}
+        this.pw={old:'',n:'',n2:''};this.notify('Password berhasil diganti')}catch(e){this.notify(e.message)}},
+    async resetPw(r){if(!confirm('Kembalikan password '+r.nama+' ke NIS?'))return;
+      if(API_URL)await this.api('siswa','resetpw',{id:r.id});else{const a=JSON.parse(ST.get('sm_siswa')||'[]');ST.set('sm_siswa',JSON.stringify(a.map(x=>x.id===r.id?{...x,pw:''}:x)))}this.notify('Password dikembalikan ke NIS')},
+    lbl(c){return LBL[c]||c.charAt(0).toUpperCase()+c.slice(1)},
+    safeUrl(u){return /^https?:\/\//i.test(u)?u:'#'},
+    sort(c){this.sd=this.sk===c?-this.sd:1;this.sk=c},
+    notify(t){this.toast=t;clearTimeout(this._tt);this._tt=setTimeout(()=>this.toast='',2600)},
+    opts(f){if(f[3]!=='siswa')return f[3];const k=this.form&&this.form.d.kelas,l=this.db.siswa.filter(s=>!k||s.kelas===k);return (l.length?l:this.db.siswa).map(s=>s.nama)},
+    async api(sheet,action,p={}){
+      if(!API_URL&&sheet==='all'){const o={};for(const x of [...Object.keys(this.db),'pengaturan'])o[x]=JSON.parse(ST.get('sm_'+x)||'[]');return o}
+      if(!API_URL){const k='sm_'+sheet;let a=JSON.parse(ST.get(k)||'[]');
+        if(action==='list')return a;
+        if(action==='create'){p.data.id=p.data.id||Date.now()+''+Math.random().toString(36).slice(2,5);a.push(p.data)}
+        if(action==='update')a=a.map(x=>x.id===p.data.id?{...x,...p.data}:x);
+        if(action==='delete')a=a.filter(x=>x.id!==p.id);
+        if(action==='clear')a=[];
+        ST.set(k,JSON.stringify(a));return p.data}
+      try{
+        if(action==='list'){const r=await fetch(`${API_URL}?sheet=${sheet}&token=${encodeURIComponent(this.user.token)}`);const j=await r.json();if(!j.ok)throw new Error(j.error);return j.data||[]}
+        const r=await fetch(API_URL,{method:'POST',body:JSON.stringify({sheet,action,token:this.user.token,...p})});const j=await r.json();
+        if(!j.ok)throw new Error(j.error);return j.data
+      }catch(e){if(/Sesi berakhir/.test(e.message))this.logout();this.notify(e.message==='Failed to fetch'?'Gagal terhubung ke server':e.message);throw e}
+    },
+    async loadAll(){let all={};try{all=await this.api('all','list')}catch(e){}
+      for(const k of Object.keys(this.db))this.db[k]=all[k]||[];const s=all.pengaturan||[];if(s[0]){this.set={...this.set,...s[0]};this.hasCfg=true}},
+    openForm(m,r){if(!M[m])return;this.page=m;this.vw='data';const d={};for(const f of M[m].f)d[f[0]]=r?(r[f[0]]??''):f[2]==='date'?today():f[2]==='select'?(this.opts(f)[0]??''):'';if(r)d.id=r.id;this.form={m,id:r&&r.id,d}},
+    async save(){if(this.busy)return;const {m,d}=this.form,F=M[m].f;
+      const miss=F.find((f,i)=>(i===0||f[3]==='siswa'||f[0]==='jurusan')&&!String(d[f[0]]??'').trim());
+      if(miss)return this.notify(miss[1]+' wajib diisi');
+      if(m==='nilai'&&!(String(d.nilai??'').trim()!==''&&+d.nilai>=0&&+d.nilai<=100))return this.notify('Nilai harus 0-100');
+      if(F.some(f=>f[0]==='siswa')){const sw=this.db.siswa.find(x=>x.nama===d.siswa);d.nis=sw?sw.nis:''}
+      this.busy=true;
+      try{if(d.id){await this.api(m,'update',{data:d});this.db[m]=this.db[m].map(x=>x.id===d.id?{...d}:x)}
+        else{const n=await this.api(m,'create',{data:d});this.db[m].push({...n})}
+        this.form=null;this.notify('Data tersimpan')}catch(e){}finally{this.busy=false}},
+    async del(r){if(!confirm('Hapus data ini?'))return;try{await this.api(this.page,'delete',{id:r.id})}catch(e){return}this.db[this.page]=this.db[this.page].filter(x=>x.id!==r.id);this.notify('Data dihapus')},
+    async saveSet(){const d={...this.set,id:'cfg'};await this.api('pengaturan',this.hasCfg?'update':'create',{data:d});this.hasCfg=true;this.notify('Pengaturan tersimpan')},
+    async saveProf(){const p=this.prof;if(p.pw&&p.pw.length<6)return this.notify('Password baru minimal 6 karakter');if(p.pw!==p.pw2)return this.notify('Konfirmasi password tidak sama');
+      try{if(API_URL)await this.api('profil','account',{nama:p.nama,username:p.username,old:p.old,new:p.pw});else{const g=JSON.parse(ST.get('sm_prof')||'null')||{},cur=g.pw||DEF.pw;if(p.pw&&p.old!==cur)throw new Error('Password lama salah');ST.set('sm_prof',JSON.stringify({nama:p.nama,username:p.username,pw:p.pw||cur}))}
+        this.user.nama=p.nama;p.pw=p.pw2=p.old='';this.notify('Profil tersimpan')}catch(e){this.notify(e.message)}},
+    csv(rows,cols){const q=v=>{v=String(v??'');if(/^[=+\-@\t\r]/.test(v))v="'"+v;return '"'+v.replace(/"/g,'""')+'"'};return [cols.join(','),...rows.map(r=>cols.map(c=>q(r[c])).join(','))].join('\n')},
+    dl(name,txt){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+txt],{type:'text/csv'}));a.download=name;a.click()},
+    exportCsv(){this.dl(this.page+'.csv',this.csv(this.rows,M[this.page].f.map(f=>f[0])))},
+    backup(){this.dl('backup-simas.csv',Object.keys(M).map(k=>'# '+M[k].t+'\n'+this.csv(this.db[k],M[k].f.map(f=>f[0]))).join('\n\n'));this.notify('Backup diunduh')},
+    printTable(){this.pr=null;window.print()},
+    printRec(r){this.pr=r;this.$nextTick(()=>{window.print();this.pr=null})},
+    async resetSem(){if(!confirm('Hapus semua data presensi, nilai, jurnal & bimbingan? Backup dulu bila perlu.'))return;
+      try{for(const k of ['presensi','nilai','jurnal','bimbingan']){await this.api(k,'clear');this.db[k]=[]}this.notify('Data semester direset')}catch(e){}}
+  }
+});
+app.component('live-clock',{data(){return{now:new Date()}},mounted(){this.t=setInterval(()=>this.now=new Date(),1000)},unmounted(){clearInterval(this.t)},computed:{jam(){return this.now.toLocaleTimeString('id-ID',{hour12:false}).replace(/\./g,':')}},template:'<span>{{jam}}</span>'});
+app.mount('#app');
+</script>
+</body>
+</html>
